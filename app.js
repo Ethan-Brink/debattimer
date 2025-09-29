@@ -18,7 +18,10 @@ if (!firebaseConfig.apiKey) {
   alert("Sit asseblief jou Firebase config in app.js (vervang die placeholder).");
 }
 
-///// DOM /////const joinBtn = document.getElementById('joinBtn');
+window.addEventListener('load', () => {
+  joinRoom(roomInput.value.trim() || 'debate1');
+});
+
 const roomInput = document.getElementById('roomInput');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
@@ -77,12 +80,15 @@ joinBtn.addEventListener('click', () => {
 });
 
 startBtn.addEventListener('click', () => {
-  // if already running do nothing
   if (localState.running) return;
   const now = Date.now();
-  // If paused with remaining, compute a startTs so countdown continues properly
   let startTs = now;
-  // store in db: running=true, startTs, duration
+
+  // Update local state immediately
+  localState.running = true;
+  localState.startTs = startTs;
+  localState.pauseRemaining = null;
+
   roomRef.child('timer').set({
     running: true,
     startTs: startTs,
@@ -90,6 +96,7 @@ startBtn.addEventListener('click', () => {
     pauseRemaining: null
   });
 });
+
 
 stopBtn.addEventListener('click', () => {
   // Stop: compute remaining and set running=false + pauseRemaining
