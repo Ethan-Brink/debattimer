@@ -1,12 +1,8 @@
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAvKntZfvLlCRnfAZQY8pgb6FNDYsUQFEc",
   authDomain: "debattimer.firebaseapp.com",
-    databaseURL: "https://debattimer-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL: "https://debattimer-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "debattimer",
   storageBucket: "debattimer.firebasestorage.app",
   messagingSenderId: "100205945923",
@@ -14,8 +10,10 @@ const firebaseConfig = {
   measurementId: "G-XZ4LNJW1L3"
 };
 
+// Initialize Firebase (compat style)
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
 
 if (!firebaseConfig.apiKey) {
   alert("Sit asseblief jou Firebase config in app.js (vervang die placeholder).");
