@@ -14,19 +14,14 @@ const firebaseConfig = {
   measurementId: "G-XZ4LNJW1L3"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 if (!firebaseConfig.apiKey) {
   alert("Sit asseblief jou Firebase config in app.js (vervang die placeholder).");
 }
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-///// DOM /////
-const joinBtn = document.getElementById('joinBtn');
+///// DOM /////const joinBtn = document.getElementById('joinBtn');
 const roomInput = document.getElementById('roomInput');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
