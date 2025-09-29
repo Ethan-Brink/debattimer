@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="af">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Debat Timer — Real-time</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Debat Timer (Real-time)</h1>
+        <div class="room">
+          <label>Room ID:</label>
+          <input id="roomInput" type="text" value="debate1" />
+          <button id="joinBtn">Join</button>
+        </div>
+      </header>
+
+      <main>
+        <div id="screen" class="color-default">
+          <div id="timerDisplay">05:00</div>
+        </div>
+
+        <div class="controls">
+          <div class="timer-controls">
+            <label>Duration (min):</label>
+            <input
+              id="durationInput"
+              type="number"
+              min="1"
+              max="30"
+              value="5"
+            />
+            <button id="startBtn">Start</button>
+            <button id="stopBtn">Stop</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+
+          <div class="color-buttons">
+            <button class="color-btn" data-color="red" id="redBtn">
+              Rooi — Vraag te lank
+            </button>
+            <button class="color-btn" data-color="blue" id="blueBtn">
+              Blou — Nie toepas
+            </button>
+            <button class="color-btn" data-color="green" id="greenBtn">
+              Groen — Veilige tyd
+            </button>
+            <button class="color-btn" data-color="yellow" id="yellowBtn">
+              Geel — Te vinnig
+            </button>
+          </div>
+        </div>
+
+        <footer>
+          <small
+            >Gemaak deur Ethan & Gideon — Open in dieselfde Room ID om te
+            sync.</small
+          >
+        </footer>
+      </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
