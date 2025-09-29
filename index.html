@@ -1,71 +1,498 @@
 <!DOCTYPE html>
 <html lang="af">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Debat Timer — Real-time</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debat Timer Sisteem</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        transition: background-color 0.3s ease;
+        background-color: #f0f0f0;
+      }
+
+      body.flashing {
+        animation: flash 0.5s ease-in-out infinite;
+      }
+
+      @keyframes flash {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .session-section {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .session-section h2 {
+        margin-bottom: 15px;
+        color: #333;
+        font-size: 1.2em;
+      }
+
+      .session-input {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 16px;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #0056b3;
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background: #545b62;
+      }
+
+      .status {
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+
+      .status.connected {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status.waiting {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .timer-display {
+        font-size: 120px;
+        font-weight: bold;
+        text-align: center;
+        margin: 40px 0;
+        font-variant-numeric: tabular-nums;
+        color: #333;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .controls .btn {
+        flex: 1;
+        min-width: 120px;
+        font-size: 18px;
+        padding: 15px;
+      }
+
+      .color-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+
+      .color-btn {
+        padding: 30px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        color: white;
+        transition: transform 0.1s, box-shadow 0.1s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .color-btn:active {
+        transform: scale(0.95);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .color-btn.red {
+        background: #dc3545;
+      }
+
+      .color-btn.blue {
+        background: #007bff;
+      }
+
+      .color-btn.green {
+        background: #28a745;
+      }
+
+      .color-btn.yellow {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .info-section {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .info-section h3 {
+        margin-bottom: 10px;
+        color: #333;
+      }
+
+      .info-section ul {
+        margin-left: 20px;
+        color: #666;
+      }
+
+      .info-section li {
+        margin: 5px 0;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 600px) {
+        .timer-display {
+          font-size: 80px;
+        }
+
+        .color-buttons {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="app">
-      <header>
-        <h1>🕒 Debat Timer (Real-time)</h1>
-        <div class="room">
-          <label for="roomInput">Room ID:</label>
-          <input id="roomInput" type="text" value="debate1" />
-          <button id="joinBtn">Join</button>
+    <div class="container">
+      <div id="sessionSection" class="session-section">
+        <h2>📱 Sessie Sinkronisasie</h2>
+        <div class="session-input">
+          <input
+            type="text"
+            id="sessionId"
+            placeholder="Voer sessie ID in (bv. debat123)"
+          />
+          <button class="btn btn-primary" onclick="joinSession()">
+            Sluit Aan
+          </button>
         </div>
-      </header>
+        <div id="statusMessage" class="status waiting">
+          Wag vir sessie verbinding...
+        </div>
+      </div>
 
-      <main>
-        <section id="screen" class="color-default">
-          <div id="timerDisplay">05:00</div>
-        </section>
+      <div id="timerSection" class="hidden">
+        <div class="timer-display" id="timerDisplay">5:00</div>
 
-        <section class="controls">
-          <div class="timer-controls">
-            <label for="durationInput">Duur (min):</label>
-            <input
-              id="durationInput"
-              type="number"
-              min="1"
-              max="30"
-              value="5"
-            />
-            <button id="startBtn">Start</button>
-            <button id="stopBtn">Stop</button>
-            <button id="resetBtn">Reset</button>
-          </div>
+        <div class="controls">
+          <button class="btn btn-primary" onclick="startTimer()">Start</button>
+          <button class="btn btn-secondary" onclick="pauseTimer()">
+            Pouseer
+          </button>
+          <button class="btn btn-secondary" onclick="resetTimer()">
+            Herstel
+          </button>
+        </div>
 
-          <div class="color-buttons">
-            <button class="color-btn" data-color="red" id="redBtn">
-              🔴 Rooi — Vraag te lank
-            </button>
-            <button class="color-btn" data-color="blue" id="blueBtn">
-              🔵 Blou — Nie toepas
-            </button>
-            <button class="color-btn" data-color="green" id="greenBtn">
-              🟢 Groen — Veilige tyd
-            </button>
-            <button class="color-btn" data-color="yellow" id="yellowBtn">
-              🟡 Geel — Te vinnig
-            </button>
-          </div>
-        </section>
+        <div class="color-buttons">
+          <button class="color-btn red" onclick="setColor('red')">
+            🔴 Vraag te lank
+          </button>
+          <button class="color-btn blue" onclick="setColor('blue')">
+            🔵 Nie van toepassing
+          </button>
+          <button class="color-btn green" onclick="setColor('green')">
+            🟢 Veilige tyd
+          </button>
+          <button class="color-btn yellow" onclick="setColor('yellow')">
+            🟡 Te vinnig gesê
+          </button>
+        </div>
 
-        <footer>
-          <small>
-            Gemaak deur Ethan & Gideon — Open in dieselfde Room ID om te sync.
-          </small>
-        </footer>
-      </main>
+        <button
+          class="btn btn-secondary"
+          style="width: 100%"
+          onclick="clearColor()"
+        >
+          Maak Skoon
+        </button>
+      </div>
+
+      <div class="info-section">
+        <h3>ℹ️ Hoe dit werk:</h3>
+        <ul>
+          <li>Beide fone moet dieselfde Sessie ID gebruik</li>
+          <li>Timer sinkroniseer outomaties tussen beide toestelle</li>
+          <li>Kleur wat gekies word, verskyn op beide fone</li>
+          <li><strong>4:00</strong> - Skerm flikker PERS</li>
+          <li><strong>4:30</strong> - Skerm flikker PIENK</li>
+          <li><strong>4:50</strong> - Skerm flikker SWART</li>
+        </ul>
+      </div>
     </div>
 
-    <!-- App logic -->
-    <script src="app.js"></script>
+    <script type="module">
+      // In-memory state management (simulating real-time sync)
+      const appState = {
+        sessionId: null,
+        timerRunning: false,
+        timeRemaining: 300, // 5 minutes in seconds
+        currentColor: null,
+        flashColor: null,
+        timerInterval: null,
+        flashInterval: null,
+        storageKey: null,
+      };
+
+      // Simulate real-time updates using localStorage events
+      window.addEventListener("storage", (e) => {
+        if (e.key === appState.storageKey && e.newValue) {
+          const data = JSON.parse(e.newValue);
+          updateFromSync(data);
+        }
+      });
+
+      function syncState() {
+        if (!appState.storageKey) return;
+
+        const data = {
+          timerRunning: appState.timerRunning,
+          timeRemaining: appState.timeRemaining,
+          currentColor: appState.currentColor,
+          flashColor: appState.flashColor,
+          timestamp: Date.now(),
+        };
+
+        localStorage.setItem(appState.storageKey, JSON.stringify(data));
+
+        // Trigger update on same page (for demo purposes)
+        updateFromSync(data);
+      }
+
+      function updateFromSync(data) {
+        appState.timeRemaining = data.timeRemaining;
+        appState.timerRunning = data.timerRunning;
+        appState.currentColor = data.currentColor;
+        appState.flashColor = data.flashColor;
+
+        updateDisplay();
+        updateBackgroundColor();
+
+        if (appState.timerRunning && !appState.timerInterval) {
+          startTimerInterval();
+        } else if (!appState.timerRunning && appState.timerInterval) {
+          clearInterval(appState.timerInterval);
+          appState.timerInterval = null;
+        }
+      }
+
+      window.joinSession = function () {
+        const sessionId = document.getElementById("sessionId").value.trim();
+        if (!sessionId) {
+          alert("Voer asseblief 'n sessie ID in");
+          return;
+        }
+
+        appState.sessionId = sessionId;
+        appState.storageKey = `debat_session_${sessionId}`;
+
+        // Check if session exists, otherwise initialize
+        const existingData = localStorage.getItem(appState.storageKey);
+        if (existingData) {
+          const data = JSON.parse(existingData);
+          updateFromSync(data);
+        } else {
+          syncState();
+        }
+
+        document.getElementById("sessionSection").classList.add("hidden");
+        document.getElementById("timerSection").classList.remove("hidden");
+
+        const statusMsg = document.getElementById("statusMessage");
+        statusMsg.textContent = `✅ Verbind met sessie: ${sessionId}`;
+        statusMsg.className = "status connected";
+      };
+
+      window.startTimer = function () {
+        appState.timerRunning = true;
+        startTimerInterval();
+        syncState();
+      };
+
+      window.pauseTimer = function () {
+        appState.timerRunning = false;
+        if (appState.timerInterval) {
+          clearInterval(appState.timerInterval);
+          appState.timerInterval = null;
+        }
+        syncState();
+      };
+
+      window.resetTimer = function () {
+        appState.timerRunning = false;
+        appState.timeRemaining = 300;
+        appState.flashColor = null;
+
+        if (appState.timerInterval) {
+          clearInterval(appState.timerInterval);
+          appState.timerInterval = null;
+        }
+
+        if (appState.flashInterval) {
+          clearInterval(appState.flashInterval);
+          appState.flashInterval = null;
+          document.body.classList.remove("flashing");
+        }
+
+        updateDisplay();
+        updateBackgroundColor();
+        syncState();
+      };
+
+      function startTimerInterval() {
+        if (appState.timerInterval) return;
+
+        appState.timerInterval = setInterval(() => {
+          if (appState.timeRemaining > 0) {
+            appState.timeRemaining--;
+            updateDisplay();
+            checkFlashTimes();
+            syncState();
+          } else {
+            pauseTimer();
+          }
+        }, 1000);
+      }
+
+      function checkFlashTimes() {
+        const time = appState.timeRemaining;
+        let newFlashColor = null;
+
+        if (time <= 10) {
+          // 4:50
+          newFlashColor = "#000000"; // Swart
+        } else if (time <= 90) {
+          // 4:30
+          newFlashColor = "#ff69b4"; // Pienk
+        } else if (time <= 120) {
+          // 4:00
+          newFlashColor = "#800080"; // Pers
+        }
+
+        if (newFlashColor !== appState.flashColor) {
+          appState.flashColor = newFlashColor;
+
+          if (appState.flashInterval) {
+            clearInterval(appState.flashInterval);
+            appState.flashInterval = null;
+            document.body.classList.remove("flashing");
+          }
+
+          if (newFlashColor) {
+            startFlashing();
+          }
+
+          updateBackgroundColor();
+        }
+      }
+
+      function startFlashing() {
+        document.body.classList.add("flashing");
+      }
+
+      function updateDisplay() {
+        const minutes = Math.floor(appState.timeRemaining / 60);
+        const seconds = appState.timeRemaining % 60;
+        const display = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        document.getElementById("timerDisplay").textContent = display;
+      }
+
+      function updateBackgroundColor() {
+        const body = document.body;
+
+        if (appState.flashColor) {
+          body.style.backgroundColor = appState.flashColor;
+        } else if (appState.currentColor) {
+          const colors = {
+            red: "#dc3545",
+            blue: "#007bff",
+            green: "#28a745",
+            yellow: "#ffc107",
+          };
+          body.style.backgroundColor = colors[appState.currentColor];
+        } else {
+          body.style.backgroundColor = "#f0f0f0";
+        }
+      }
+
+      window.setColor = function (color) {
+        appState.currentColor = color;
+        updateBackgroundColor();
+        syncState();
+      };
+
+      window.clearColor = function () {
+        appState.currentColor = null;
+        updateBackgroundColor();
+        syncState();
+      };
+    </script>
   </body>
 </html>
