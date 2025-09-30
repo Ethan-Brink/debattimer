@@ -100,6 +100,15 @@
         background: #545b62;
       }
 
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #c82333;
+      }
+
       .status {
         padding: 10px;
         border-radius: 8px;
@@ -115,6 +124,11 @@
       .status.waiting {
         background: #fff3cd;
         color: #856404;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
       }
 
       .timer-display {
@@ -208,6 +222,22 @@
         display: none;
       }
 
+      .session-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 15px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .session-info {
+        font-weight: 600;
+        color: #28a745;
+      }
+
       @media (max-width: 600px) {
         .timer-display {
           font-size: 80px;
@@ -234,11 +264,18 @@
           </button>
         </div>
         <div id="statusMessage" class="status waiting">
-          Wag vir sessie verbinding...
+          Gereed om aan te sluit...
         </div>
       </div>
 
       <div id="timerSection" class="hidden">
+        <div class="session-header">
+          <div class="session-info" id="sessionInfo"></div>
+          <button class="btn btn-danger" onclick="leaveSession()">
+            Verlaat
+          </button>
+        </div>
+
         <div class="timer-display" id="timerDisplay">5:00</div>
 
         <div class="controls">
@@ -279,7 +316,7 @@
         <h3>ℹ️ Hoe dit werk:</h3>
         <ul>
           <li>Beide fone moet dieselfde Sessie ID gebruik</li>
-          <li>Timer sinkroniseer outomaties tussen beide toestelle</li>
+          <li>Timer sinkroniseer real-time tussen beide toestelle</li>
           <li>Kleur wat gekies word, verskyn op beide fone</li>
           <li><strong>4:00</strong> - Skerm flikker PERS</li>
           <li><strong>4:30</strong> - Skerm flikker PIENK</li>
@@ -289,61 +326,54 @@
     </div>
 
     <script type="module">
-      // In-memory state management (simulating real-time sync)
+      // Import Firebase
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        set,
+        onValue,
+        remove,
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyAvKntZfvLlCRnfAZQY8pgb6FNDYsUQFEc",
+        authDomain: "debattimer.firebaseapp.com",
+        databaseURL:
+          "https://debattimer-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "debattimer",
+        storageBucket: "debattimer.firebasestorage.app",
+        messagingSenderId: "100205945923",
+        appId: "1:100205945923:web:cd27861b3b4c359c98a0f6",
+        measurementId: "G-XZ4LNJW1L3",
+      };
+
+      // Initialize Firebase
+      let app, database, sessionRef;
+
+      try {
+        app = initializeApp(firebaseConfig);
+        database = getDatabase(app);
+      } catch (error) {
+        console.error("Firebase initialization error:", error);
+        document.getElementById("statusMessage").textContent =
+          "Firebase fout. Probeer weer.";
+        document.getElementById("statusMessage").className = "status error";
+      }
+
       const appState = {
         sessionId: null,
         timerRunning: false,
-        timeRemaining: 300, // 5 minutes in seconds
+        timeRemaining: 300,
         currentColor: null,
         flashColor: null,
         timerInterval: null,
-        flashInterval: null,
-        storageKey: null,
+        lastUpdate: 0,
+        isUpdating: false,
       };
 
-      // Simulate real-time updates using localStorage events
-      window.addEventListener("storage", (e) => {
-        if (e.key === appState.storageKey && e.newValue) {
-          const data = JSON.parse(e.newValue);
-          updateFromSync(data);
-        }
-      });
-
-      function syncState() {
-        if (!appState.storageKey) return;
-
-        const data = {
-          timerRunning: appState.timerRunning,
-          timeRemaining: appState.timeRemaining,
-          currentColor: appState.currentColor,
-          flashColor: appState.flashColor,
-          timestamp: Date.now(),
-        };
-
-        localStorage.setItem(appState.storageKey, JSON.stringify(data));
-
-        // Trigger update on same page (for demo purposes)
-        updateFromSync(data);
-      }
-
-      function updateFromSync(data) {
-        appState.timeRemaining = data.timeRemaining;
-        appState.timerRunning = data.timerRunning;
-        appState.currentColor = data.currentColor;
-        appState.flashColor = data.flashColor;
-
-        updateDisplay();
-        updateBackgroundColor();
-
-        if (appState.timerRunning && !appState.timerInterval) {
-          startTimerInterval();
-        } else if (!appState.timerRunning && appState.timerInterval) {
-          clearInterval(appState.timerInterval);
-          appState.timerInterval = null;
-        }
-      }
-
-      window.joinSession = function () {
+      window.joinSession = async function () {
         const sessionId = document.getElementById("sessionId").value.trim();
         if (!sessionId) {
           alert("Voer asseblief 'n sessie ID in");
@@ -351,41 +381,107 @@
         }
 
         appState.sessionId = sessionId;
-        appState.storageKey = `debat_session_${sessionId}`;
+        sessionRef = ref(database, `sessions/${sessionId}`);
 
-        // Check if session exists, otherwise initialize
-        const existingData = localStorage.getItem(appState.storageKey);
-        if (existingData) {
-          const data = JSON.parse(existingData);
-          updateFromSync(data);
-        } else {
-          syncState();
-        }
+        // Listen for changes
+        onValue(sessionRef, (snapshot) => {
+          if (snapshot.exists() && !appState.isUpdating) {
+            const data = snapshot.val();
+            updateFromFirebase(data);
+          }
+        });
+
+        // Initialize session
+        await updateFirebase();
 
         document.getElementById("sessionSection").classList.add("hidden");
         document.getElementById("timerSection").classList.remove("hidden");
-
-        const statusMsg = document.getElementById("statusMessage");
-        statusMsg.textContent = `✅ Verbind met sessie: ${sessionId}`;
-        statusMsg.className = "status connected";
+        document.getElementById(
+          "sessionInfo"
+        ).textContent = `📡 Sessie: ${sessionId}`;
       };
 
-      window.startTimer = function () {
+      window.leaveSession = async function () {
+        if (sessionRef && appState.sessionId) {
+          await remove(sessionRef);
+        }
+
+        if (appState.timerInterval) {
+          clearInterval(appState.timerInterval);
+        }
+
+        appState.sessionId = null;
+        appState.timerRunning = false;
+        appState.timeRemaining = 300;
+        appState.currentColor = null;
+        appState.flashColor = null;
+
+        document.getElementById("timerSection").classList.add("hidden");
+        document.getElementById("sessionSection").classList.remove("hidden");
+        document.body.style.backgroundColor = "#f0f0f0";
+        document.body.classList.remove("flashing");
+      };
+
+      async function updateFirebase() {
+        if (!sessionRef) return;
+
+        appState.isUpdating = true;
+        appState.lastUpdate = Date.now();
+
+        const data = {
+          timerRunning: appState.timerRunning,
+          timeRemaining: appState.timeRemaining,
+          currentColor: appState.currentColor,
+          flashColor: appState.flashColor,
+          lastUpdate: appState.lastUpdate,
+        };
+
+        await set(sessionRef, data);
+        appState.isUpdating = false;
+      }
+
+      function updateFromFirebase(data) {
+        // Only update if the data is newer
+        if (data.lastUpdate <= appState.lastUpdate) return;
+
+        const wasRunning = appState.timerRunning;
+
+        appState.timeRemaining = data.timeRemaining;
+        appState.timerRunning = data.timerRunning;
+        appState.currentColor = data.currentColor;
+        appState.flashColor = data.flashColor;
+        appState.lastUpdate = data.lastUpdate;
+
+        updateDisplay();
+        updateBackgroundColor();
+
+        // Handle timer state changes
+        if (appState.timerRunning && !wasRunning) {
+          startTimerInterval();
+        } else if (!appState.timerRunning && wasRunning) {
+          if (appState.timerInterval) {
+            clearInterval(appState.timerInterval);
+            appState.timerInterval = null;
+          }
+        }
+      }
+
+      window.startTimer = async function () {
         appState.timerRunning = true;
         startTimerInterval();
-        syncState();
+        await updateFirebase();
       };
 
-      window.pauseTimer = function () {
+      window.pauseTimer = async function () {
         appState.timerRunning = false;
         if (appState.timerInterval) {
           clearInterval(appState.timerInterval);
           appState.timerInterval = null;
         }
-        syncState();
+        await updateFirebase();
       };
 
-      window.resetTimer = function () {
+      window.resetTimer = async function () {
         appState.timerRunning = false;
         appState.timeRemaining = 300;
         appState.flashColor = null;
@@ -395,28 +491,24 @@
           appState.timerInterval = null;
         }
 
-        if (appState.flashInterval) {
-          clearInterval(appState.flashInterval);
-          appState.flashInterval = null;
-          document.body.classList.remove("flashing");
-        }
+        document.body.classList.remove("flashing");
 
         updateDisplay();
         updateBackgroundColor();
-        syncState();
+        await updateFirebase();
       };
 
       function startTimerInterval() {
         if (appState.timerInterval) return;
 
-        appState.timerInterval = setInterval(() => {
+        appState.timerInterval = setInterval(async () => {
           if (appState.timeRemaining > 0) {
             appState.timeRemaining--;
             updateDisplay();
             checkFlashTimes();
-            syncState();
+            await updateFirebase();
           } else {
-            pauseTimer();
+            await pauseTimer();
           }
         }, 1000);
       }
@@ -426,35 +518,24 @@
         let newFlashColor = null;
 
         if (time <= 10) {
-          // 4:50
-          newFlashColor = "#000000"; // Swart
+          newFlashColor = "#000000";
         } else if (time <= 90) {
-          // 4:30
-          newFlashColor = "#ff69b4"; // Pienk
+          newFlashColor = "#ff69b4";
         } else if (time <= 120) {
-          // 4:00
-          newFlashColor = "#800080"; // Pers
+          newFlashColor = "#800080";
         }
 
         if (newFlashColor !== appState.flashColor) {
           appState.flashColor = newFlashColor;
 
-          if (appState.flashInterval) {
-            clearInterval(appState.flashInterval);
-            appState.flashInterval = null;
-            document.body.classList.remove("flashing");
-          }
-
           if (newFlashColor) {
-            startFlashing();
+            document.body.classList.add("flashing");
+          } else {
+            document.body.classList.remove("flashing");
           }
 
           updateBackgroundColor();
         }
-      }
-
-      function startFlashing() {
-        document.body.classList.add("flashing");
       }
 
       function updateDisplay() {
@@ -482,16 +563,16 @@
         }
       }
 
-      window.setColor = function (color) {
+      window.setColor = async function (color) {
         appState.currentColor = color;
         updateBackgroundColor();
-        syncState();
+        await updateFirebase();
       };
 
-      window.clearColor = function () {
+      window.clearColor = async function () {
         appState.currentColor = null;
         updateBackgroundColor();
-        syncState();
+        await updateFirebase();
       };
     </script>
   </body>
