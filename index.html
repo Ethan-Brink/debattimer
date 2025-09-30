@@ -366,8 +366,8 @@
         sessionId: null,
         timerRunning: false,
         timeRemaining: 300,
-        currentColor: null,
-        flashColor: null,
+        currentColor: "",
+        flashColor: "",
         timerInterval: null,
         lastUpdate: 0,
         isUpdating: false,
@@ -413,8 +413,8 @@
         appState.sessionId = null;
         appState.timerRunning = false;
         appState.timeRemaining = 300;
-        appState.currentColor = null;
-        appState.flashColor = null;
+        appState.currentColor = "";
+        appState.flashColor = "";
 
         document.getElementById("timerSection").classList.add("hidden");
         document.getElementById("sessionSection").classList.remove("hidden");
@@ -431,12 +431,16 @@
         const data = {
           timerRunning: appState.timerRunning,
           timeRemaining: appState.timeRemaining,
-          currentColor: appState.currentColor || "",
-          flashColor: appState.flashColor || "",
+          currentColor: appState.currentColor,
+          flashColor: appState.flashColor,
           lastUpdate: appState.lastUpdate,
         };
 
-        await set(sessionRef, data);
+        try {
+          await set(sessionRef, data);
+        } catch (error) {
+          console.error("Firebase update error:", error);
+        }
         appState.isUpdating = false;
       }
 
@@ -448,8 +452,8 @@
 
         appState.timeRemaining = data.timeRemaining;
         appState.timerRunning = data.timerRunning;
-        appState.currentColor = data.currentColor;
-        appState.flashColor = data.flashColor;
+        appState.currentColor = data.currentColor || "";
+        appState.flashColor = data.flashColor || "";
         appState.lastUpdate = data.lastUpdate;
 
         updateDisplay();
@@ -484,8 +488,8 @@
       window.resetTimer = async function () {
         appState.timerRunning = false;
         appState.timeRemaining = 300;
-        appState.flashColor = null;
-        appState.currentColor = null;
+        appState.flashColor = "";
+        appState.currentColor = "";
 
         if (appState.timerInterval) {
           clearInterval(appState.timerInterval);
@@ -516,7 +520,7 @@
 
       function checkFlashTimes() {
         const time = appState.timeRemaining;
-        let newFlashColor = null;
+        let newFlashColor = "";
 
         if (time <= 10) {
           newFlashColor = "#000000";
@@ -571,7 +575,7 @@
       };
 
       window.clearColor = async function () {
-        appState.currentColor = null;
+        appState.currentColor = "";
         updateBackgroundColor();
         await updateFirebase();
       };
