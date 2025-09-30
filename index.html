@@ -431,8 +431,8 @@
         const data = {
           timerRunning: appState.timerRunning,
           timeRemaining: appState.timeRemaining,
-          currentColor: appState.currentColor,
-          flashColor: appState.flashColor,
+          currentColor: appState.currentColor || "",
+          flashColor: appState.flashColor || "",
           lastUpdate: appState.lastUpdate,
         };
 
@@ -485,6 +485,7 @@
         appState.timerRunning = false;
         appState.timeRemaining = 300;
         appState.flashColor = null;
+        appState.currentColor = null;
 
         if (appState.timerInterval) {
           clearInterval(appState.timerInterval);
